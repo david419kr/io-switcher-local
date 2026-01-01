@@ -1,0 +1,6 @@
+PySwitcherIO==0.0.7
+bleak_retry_connector==4.4.4
+bleak==2.1.1
+# Notes:
+# - tkinter is part of the Python standard library on Windows and doesn't need to be installed via pip.
+# - If you need different versions, edit this file before running the install script.
