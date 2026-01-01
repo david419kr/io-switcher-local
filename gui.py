@@ -7,6 +7,7 @@ import time
 import tkinter as tk
 from tkinter import messagebox
 
+from bleak import BleakScanner
 import pyswitcherio
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
@@ -43,10 +44,12 @@ class SwitchApp:
         frame = tk.Frame(root, padx=10, pady=10)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(frame, text="MAC Address:").grid(row=0, column=0, sticky="w")
+        tk.Label(frame, text="스위처 MAC 주소:").grid(row=0, column=0, sticky="w")
         self.mac_entry = tk.Entry(frame, textvariable=self.mac_var, width=30)
         self.mac_entry.grid(row=0, column=1, sticky="w")
-        tk.Button(frame, text="Save MAC", command=self.save_mac).grid(row=0, column=2, padx=5)
+        tk.Button(frame, text="스위처 저장", command=self.save_mac).grid(row=0, column=2, padx=5)
+        self.find_devices_btn = tk.Button(frame, text="스위처 찾기", command=self.find_devices)
+        self.find_devices_btn.grid(row=0, column=3, padx=5)
 
         self.type_check = tk.Checkbutton(frame, text="2구 스위처 (체크: 2구, 해제: 1구)", variable=self.type_var, onvalue=2, offvalue=1, command=self.on_type_change)
         self.type_check.grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 0))
@@ -56,14 +59,14 @@ class SwitchApp:
 
         # Switch controls
         # Replace checkboxes with independent ON/OFF buttons (always available to press)
-        self.switch1_on_btn = tk.Button(frame, text="Switch1 ON", width=12, command=lambda: self.on_action(1, "on"))
+        self.switch1_on_btn = tk.Button(frame, text="스위치1 ON", width=12, command=lambda: self.on_action(1, "on"))
         self.switch1_on_btn.grid(row=3, column=0, sticky="w")
-        self.switch1_off_btn = tk.Button(frame, text="Switch1 OFF", width=12, command=lambda: self.on_action(1, "off"))
+        self.switch1_off_btn = tk.Button(frame, text="스위치1 OFF", width=12, command=lambda: self.on_action(1, "off"))
         self.switch1_off_btn.grid(row=3, column=1, sticky="w")
 
-        self.switch2_on_btn = tk.Button(frame, text="Switch2 ON", width=12, command=lambda: self.on_action(2, "on"))
+        self.switch2_on_btn = tk.Button(frame, text="스위치2 ON", width=12, command=lambda: self.on_action(2, "on"))
         self.switch2_on_btn.grid(row=3, column=2, sticky="w")
-        self.switch2_off_btn = tk.Button(frame, text="Switch2 OFF", width=12, command=lambda: self.on_action(2, "off"))
+        self.switch2_off_btn = tk.Button(frame, text="스위치2 OFF", width=12, command=lambda: self.on_action(2, "off"))
         self.switch2_off_btn.grid(row=3, column=3, sticky="w")
 
         # Initially hide switch2 buttons if type is 1
@@ -126,6 +129,117 @@ class SwitchApp:
 
     def on_invert_change(self):
         self.save_config()
+
+    def find_devices(self):
+        # Open a small scanning window and start scanning in background
+        if getattr(self, '_scan_window', None):
+            return
+        self._scan_window = tk.Toplevel(self.root)
+        self._scan_window.title('Find SWITCHER_M devices')
+        self._scan_window.geometry('420x300')
+        self._scan_window.transient(self.root)
+        self._scan_window.grab_set()
+
+        lbl = tk.Label(self._scan_window, text='Scanning for devices named "SWITCHER_M"...')
+        lbl.pack(anchor='w', padx=8, pady=(8, 0))
+        self._scan_results_frame = tk.Frame(self._scan_window)
+        self._scan_results_frame.pack(fill=tk.BOTH, expand=True, padx=8, pady=8)
+
+        btn_frame = tk.Frame(self._scan_window)
+        btn_frame.pack(fill=tk.X, padx=8, pady=(0,8))
+        tk.Button(btn_frame, text='Close', command=self._close_scan_window).pack(side=tk.RIGHT)
+
+        # disable Find Devices button during scan
+        try:
+            self.find_devices_btn.config(state=tk.DISABLED)
+        except Exception:
+            pass
+        # start background scan
+        t = threading.Thread(target=self._do_scan, args=(lbl,))
+        t.daemon = True
+        t.start()
+
+    def _close_scan_window(self):
+        if getattr(self, '_scan_window', None):
+            try:
+                self._scan_window.grab_release()
+            except Exception:
+                pass
+            self._scan_window.destroy()
+            self._scan_window = None
+        try:
+            self.find_devices_btn.config(state=tk.NORMAL)
+        except Exception:
+            pass
+
+    def _do_scan(self, status_label):
+        try:
+            maybe = BleakScanner.discover(timeout=5.0)
+            if asyncio.iscoroutine(maybe):
+                devices = asyncio.run(maybe)
+            else:
+                devices = maybe
+        except Exception as e:
+            err = f"Scan error: {e}"
+            self.root.after(1, lambda: self._show_scan_error(err))
+            return
+        # filter devices whose name matches SWITCHER_M
+        results = []
+        for d in devices:
+            name = d.name or ''
+            if 'SWITCHER_M' in name:
+                results.append((name, d.address))
+        self.root.after(1, lambda: self._show_scan_results(results))
+
+    def _show_scan_error(self, msg: str):
+        if getattr(self, '_scan_window', None):
+            for w in self._scan_window.winfo_children():
+                w.destroy()
+            tk.Label(self._scan_window, text=msg, fg='red').pack(anchor='w', padx=8, pady=8)
+            tk.Button(self._scan_window, text='Close', command=self._close_scan_window).pack(padx=8, pady=8)
+        try:
+            self.find_devices_btn.config(state=tk.NORMAL)
+        except Exception:
+            pass
+
+    def _show_scan_results(self, results):
+        if not getattr(self, '_scan_window', None):
+            return
+        frame = self._scan_results_frame
+        # clear
+        for c in frame.winfo_children():
+            c.destroy()
+        if not results:
+            tk.Label(frame, text='No SWITCHER_M devices found.').pack(anchor='w')
+            try:
+                self.find_devices_btn.config(state=tk.NORMAL)
+            except Exception:
+                pass
+            return
+        for name, addr in results:
+            row = tk.Frame(frame)
+            row.pack(fill=tk.X, pady=2)
+            tk.Label(row, text=f"{name}", width=22, anchor='w').pack(side=tk.LEFT)
+            tk.Label(row, text=addr, width=20, anchor='w').pack(side=tk.LEFT, padx=(4,8))
+            tk.Button(row, text='Copy', command=lambda a=addr: self._copy_to_clipboard(a)).pack(side=tk.RIGHT, padx=4)
+            tk.Button(row, text='Use', command=lambda a=addr: self._use_mac(a)).pack(side=tk.RIGHT)
+        try:
+            self.find_devices_btn.config(state=tk.NORMAL)
+        except Exception:
+            pass
+
+    def _copy_to_clipboard(self, addr: str):
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(addr)
+        except Exception:
+            pass
+
+    def _use_mac(self, addr: str):
+        self.mac_var.set(addr)
+        self.save_config()
+        self.status_label.config(text=f"MAC set to {addr}")
+        self._close_scan_window()
 
     def on_log_message(self, message: str):
         # This may be called from non-main threads; schedule into mainloop
