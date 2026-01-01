@@ -21,6 +21,6 @@ flutter:
 dependency_overrides:
   permission_handler_android:
     git:
-      url: https://github.com/Baseflow/permission_handler.git
+      url: https://github.com/Baseflow/flutter-permission-handler.git
       path: permission_handler_android
       ref: main
