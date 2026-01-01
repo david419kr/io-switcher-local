@@ -12,8 +12,20 @@ dependencies:
   shared_preferences: ^2.0.15
   permission_handler: ^12.0.1
 
+dev_dependencies:
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.8
+  flutter_launcher_icons: "^0.13.1"
+
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: "AppIcon"
+  image_path_ios: "icon.png"
+  image_path_android: "icon.png"
+  remove_alpha_ios: true
 
 # If permission_handler_android from pub.dev still contains v1 embedding
 # references, use the git version from the official repo as an override.
