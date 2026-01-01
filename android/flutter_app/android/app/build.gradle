@@ -24,7 +24,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.example.switcher_local"
-    compileSdkVersion 33
+    compileSdk = 36
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -43,7 +43,7 @@ android {
     defaultConfig {
         applicationId "com.example.switcher_local"
         minSdkVersion flutter.minSdkVersion
-        targetSdkVersion 33
+        targetSdk = 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
