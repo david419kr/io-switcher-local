@@ -1,4 +1,4 @@
-name: pyswitcher_app
+name: I/O 스위처 로컬
 description: A mobile client for PySwitcherIO devices
 publish_to: 'none'
 version: 0.0.1
