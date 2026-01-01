@@ -1,5 +1,25 @@
+# Python
 venv/
 __pycache__/
 config.json
 test.py
 *.hprof
+
+# Flutter/Dart
+.dart_tool/
+.buildlog/
+.packages
+.pub/
+pubspec.lock
+.idea/
+android/local.properties
+android/.gradle/
+**/build/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+
+# Binary / OS
+*.iml
+*.log
+.DS_Store
+Thumbs.db
