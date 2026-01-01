@@ -1,51 +1,82 @@
-PySwitcher Mobile (Flutter)
+# I/O 스위처 로컬 (Flutter)
 
-This is a minimal Flutter app to control PySwitcherIO devices from Android.
+Android용 PySwitcherIO 기기 제어 앱입니다.
 
-Features implemented (matching your desktop `gui.py`):
-- Store MAC address, device type (1 or 2), and invert setting using SharedPreferences
-- Find devices: Scans for BLE devices whose name contains "SWITCHER_M" and shows a list with Copy/Use buttons
-- Switch controls: Separate ON/OFF buttons for Switch1 and Switch2 (Switch2 hidden in 1-gang mode)
-- Retry logic on write: attempts up to 5 times with 1s delay (status updated during retries)
-- Status label and simple failure dialog on final failure
+## 주요 기능
 
-How to run
-1. Install Flutter SDK: https://flutter.dev
-2. From this folder, run:
+### 앱 기능
+- MAC 주소, 기기 유형(1구/2구), 반전 설정을 SharedPreferences에 저장
+- 기기 찾기: "SWITCHER_M" 이름을 가진 BLE 기기 검색 및 목록 표시 (복사/사용 버튼)
+- 스위치 제어: Switch1 및 Switch2 각각 독립적인 ON/OFF 버튼 (1구 모드에서는 Switch2 숨김)
+- 재시도 로직: 최대 5회 재시도 (1초 간격), 재시도 중 상태 업데이트
+- 세련된 Material 3 UI: Card 기반 레이아웃, 색상별 버튼, 상태 표시
+
+### 홈 스크린 위젯 ✨ NEW
+- **2x1 소형 위젯**: 1구 스위처용 (Switch1 ON/OFF)
+- **4x1 대형 위젯**: 2구 스위처용 (Switch1/2 ON/OFF 전체 버튼)
+- 위젯에서 직접 제어 가능 (앱이 백그라운드에서 BLE 명령 전송)
+- 현재 앱 설정(MAC, 기기 유형, 반전 옵션) 자동 적용
+
+## 빌드 방법
+
+### 로컬 빌드
+1. Flutter SDK 설치: https://flutter.dev
+2. 이 폴더에서 실행:
+   ```bash
    flutter pub get
-   flutter run -d <android-device>
+   flutter build apk --debug
+   ```
 
-Android permissions
-- Add the following permissions to `android/app/src/main/AndroidManifest.xml` inside `<manifest>`:
+### CI/CD (GitHub Actions)
+- `.github/workflows/build_apk.yml` 워크플로우가 debug/release APK 자동 빌드
+- GitHub에 푸시하면 자동으로 빌드되어 Artifacts에 업로드됨
 
-  <!-- Bluetooth runtime permissions -->
-  <uses-permission android:name="android.permission.BLUETOOTH"/>
-  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
-  <uses-permission android:name="android.permission.BLUETOOTH_SCAN"/>
-  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
-  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+## 위젯 사용 방법
 
-- On Android 12+ you must request BLUETOOTH_SCAN and BLUETOOTH_CONNECT at runtime. The app requests permissions using `permission_handler` plugin.
+1. 앱 설치 후 먼저 앱을 실행하여 MAC 주소와 설정을 저장하세요
+2. 홈 화면 길게 누르기 → 위젯 추가
+3. "I/O 스위처 로컬" 위젯 선택
+   - **소형 (2x1)**: 1구 스위처에 적합
+   - **대형 (4x1)**: 2구 스위처에 적합
+4. 위젯 버튼을 눌러 즉시 스위치 제어
 
-Notes
-- The app uses the same service UUID and characteristic UUID as the desktop library (from PySwitcherIO):
-  - Service: 0000150b-0000-1000-8000-00805f9b34fb
-  - Characteristic: 000015ba-0000-1000-8000-00805f9b34fb
-- BLE behavior may vary by device and Android version. Test on a real Android device.
+## Android 권한
 
-CI (GitHub Actions)
-- I added a GitHub Actions workflow at `.github/workflows/build_apk.yml` that builds debug and release APKs and uploads them as workflow artifacts.
-- To run it: push this repository to GitHub (main branch) and either push a commit or use the "Run workflow" button in Actions -> Workflows -> Build Flutter APK.
-- Artifacts will be available in the workflow run summary.
+AndroidManifest.xml에 다음 권한이 자동으로 포함됩니다:
+- `BLUETOOTH_SCAN` / `BLUETOOTH_CONNECT` (Android 12+)
+- `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION`
+- 앱 실행 시 `permission_handler` 플러그인이 런타임 권한 요청
 
-Local build notes
-- If you prefer to build locally, install Flutter and Android SDK on your machine and ensure `flutter` is in PATH and Android licenses accepted.
-- Then from `android/flutter_app` run `build_local.bat` (Windows) or `flutter build apk --debug` / `flutter build apk --release`.
+## 기술 스펙
 
-Signing release APK
-- For a proper signed release APK, create a `key.properties` in `android/flutter_app/android/` with your keystore credentials (see `key.properties.sample`).
-- Then follow Flutter docs to configure `android/app/build.gradle` signingConfigs, or run `flutter build apk --release` after configuring.
+- **BLE 프로토콜** (PySwitcherIO 호환):
+  - Service UUID: `0000150b-0000-1000-8000-00805f9b34fb`
+  - Characteristic UUID: `000015ba-0000-1000-8000-00805f9b34fb`
+- **패키지**:
+  - `flutter_reactive_ble`: BLE 통신
+  - `shared_preferences`: 설정 저장
+  - `permission_handler`: 권한 관리
+  - `home_widget`: 홈 스크린 위젯 (네이티브 Android 위젯)
 
-Let me know if you want me to:
+## 주의사항
+
+- 실제 Android 기기에서 테스트 필요 (에뮬레이터는 BLE 미지원)
+- Android 버전 및 기기에 따라 BLE 동작이 다를 수 있음
+- 위젯 사용 전 반드시 앱에서 먼저 MAC 주소 설정 필요
+
+## 릴리즈 APK 서명
+
+`android/key.properties` 파일 생성 (key.properties.sample 참조):
+```properties
+storePassword=your-password
+keyPassword=your-password
+keyAlias=your-key-alias
+storeFile=path/to/keystore.jks
+```
+
+그 후:
+```bash
+flutter build apk --release
+```
 - Add automated signing using GitHub Secrets (upload your keystore securely to repository secrets and configure the workflow to sign the APK), or
 - Generate a debug-signed test APK in CI and attach it to a GitHub release automatically.

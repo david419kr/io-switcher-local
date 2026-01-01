@@ -11,6 +11,7 @@ dependencies:
   flutter_reactive_ble: ^5.0.2
   shared_preferences: ^2.0.15
   permission_handler: ^12.0.1
+  home_widget: ^0.4.0
 
 dev_dependencies:
   hive_generator: ^2.0.1

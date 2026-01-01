@@ -7,8 +7,108 @@ import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+const MethodChannel _widgetChannel = MethodChannel('com.example.switcher_local/widget');
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  _widgetChannel.setMethodCallHandler(_handleWidgetAction);
   runApp(const MyApp());
+}
+
+Future<dynamic> _handleWidgetAction(MethodCall call) async {
+  if (call.method == 'widgetAction') {
+    final String action = call.arguments as String;
+    final parts = action.split('_');
+    if (parts.length == 2) {
+      final switchNum = int.tryParse(parts[0]);
+      final actionType = parts[1];
+      if (switchNum != null) {
+        await _executeWidgetAction(switchNum, actionType);
+      }
+    }
+  }
+}
+
+Future<void> _executeWidgetAction(int switchIndex, String action) async {
+  final sp = await SharedPreferences.getInstance();
+  final mac = sp.getString('mac') ?? '';
+  final deviceType = sp.getInt('type') ?? 2;
+  final invert = sp.getBool('invert') ?? false;
+  
+  if (mac.isEmpty) return;
+  
+  String finalAction = action;
+  if (invert) {
+    finalAction = (action == 'on') ? 'off' : 'on';
+  }
+  
+  final flutterReactiveBle = FlutterReactiveBle();
+  await _writeWithRetriesBackground(flutterReactiveBle, mac, switchIndex, finalAction, retries: 3);
+}
+
+Future<bool> _writeWithRetriesBackground(FlutterReactiveBle ble, String deviceId, int switchIndex, String action, {int retries = 3}) async {
+  final serviceId = Uuid.parse(SERVICE_UUID);
+  final charIdConst = Uuid.parse(CHAR_UUID);
+  final data = Uint8List.fromList((switchIndex == 1)
+      ? (action == 'on' ? ON_KEY1 : OFF_KEY1)
+      : (action == 'on' ? ON_KEY2 : OFF_KEY2));
+
+  for (int i = 0; i < retries; i++) {
+    StreamSubscription<ConnectionStateUpdate>? connSub;
+    try {
+      final connStream = ble.connectToDevice(id: deviceId, connectionTimeout: const Duration(seconds: 5));
+      final completer = Completer<ConnectionStateUpdate>();
+      connSub = connStream.listen((update) {
+        if (!completer.isCompleted) {
+          if (update.connectionState == DeviceConnectionState.connected) {
+            completer.complete(update);
+          } else if (update.connectionState == DeviceConnectionState.disconnected) {
+            completer.completeError(Exception('Device disconnected'));
+          }
+        }
+      }, onError: (err) {
+        if (!completer.isCompleted) completer.completeError(err);
+      });
+      
+      try {
+        await completer.future.timeout(const Duration(seconds: 6));
+      } catch (e) {
+        try { await connSub?.cancel(); } catch (_) {}
+        rethrow;
+      }
+      
+      await Future.delayed(const Duration(milliseconds: 200));
+      
+      final characteristic = QualifiedCharacteristic(
+        serviceId: serviceId,
+        characteristicId: charIdConst,
+        deviceId: deviceId,
+      );
+
+      try {
+        await ble.writeCharacteristicWithResponse(characteristic, value: data);
+        await Future.delayed(const Duration(milliseconds: 300));
+        await connSub?.cancel();
+        return true;
+      } catch (e) {
+        try {
+          await ble.writeCharacteristicWithoutResponse(characteristic, value: data);
+          await Future.delayed(const Duration(milliseconds: 300));
+          await connSub?.cancel();
+          return true;
+        } catch (e2) {
+          throw Exception('Write failed');
+        }
+      }
+    } catch (e) {
+      try { await connSub?.cancel(); } catch (_) {}
+      if (i < retries - 1) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        continue;
+      }
+    }
+  }
+  return false;
 }
 
 const String SERVICE_UUID = '0000150b-0000-1000-8000-00805f9b34fb';

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:padding="8dp"
+    android:background="@drawable/widget_background">
+
+    <Button
+        android:id="@+id/switch1_on"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="4dp"
+        android:text="1 ON"
+        android:textSize="10sp"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/button_on_bg"/>
+
+    <Button
+        android:id="@+id/switch1_off"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="4dp"
+        android:text="1 OFF"
+        android:textSize="10sp"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/button_off_bg"/>
+
+    <Button
+        android:id="@+id/switch2_on"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:layout_marginEnd="4dp"
+        android:text="2 ON"
+        android:textSize="10sp"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/button_on2_bg"/>
+
+    <Button
+        android:id="@+id/switch2_off"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:text="2 OFF"
+        android:textSize="10sp"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/button_off_bg"/>
+
+</LinearLayout>
