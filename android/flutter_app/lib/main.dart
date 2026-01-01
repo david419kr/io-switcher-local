@@ -13,15 +13,16 @@ const MethodChannel _widgetChannel = MethodChannel('com.example.switcher_local/w
 final ValueNotifier<bool> widgetProcessing = ValueNotifier<bool>(false);
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  _widgetChannel.setMethodCallHandler(_handleWidgetAction);
-
-  // Capture Flutter framework errors and forward to zone handler
-  FlutterError.onError = (FlutterErrorDetails details) {
-    Zone.current.handleUncaughtError(details.exception, details.stack ?? StackTrace.current);
-  };
-
   runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    // Install the platform channel handler after bindings are initialized
+    _widgetChannel.setMethodCallHandler(_handleWidgetAction);
+
+    // Capture Flutter framework errors and forward to zone handler
+    FlutterError.onError = (FlutterErrorDetails details) {
+      Zone.current.handleUncaughtError(details.exception, details.stack ?? StackTrace.current);
+    };
+
     runApp(const MyApp());
   }, (error, stack) async {
     // Save last error to SharedPreferences for postmortem
@@ -46,20 +47,17 @@ Future<dynamic> _handleWidgetAction(MethodCall call) async {
       final switchNum = int.tryParse(parts[0]);
       final actionType = parts[1];
       if (switchNum != null) {
-        print('Widget action received: $action');
         // Notify UI to show processing overlay, then execute action.
         widgetProcessing.value = true;
         final success = await _executeWidgetAction(switchNum, actionType);
         widgetProcessing.value = false;
-        print('Widget action result: $success');
         // If app was launched only to perform widget action, move app to background
-        if (success) {
-          try {
-            print('Calling SystemNavigator.pop() to return to home');
+        try {
+          if (success) {
             SystemNavigator.pop();
-          } catch (e) {
-            print('SystemNavigator.pop() failed: $e');
           }
+        } catch (e) {
+          // ignore
         }
       }
     }
@@ -192,10 +190,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-
+  late final VoidCallback _widgetListener;
   final flutterReactiveBle = FlutterReactiveBle();
   final _macController = TextEditingController();
-  late final VoidCallback _widgetListener;
   int deviceType = 2; // 1 or 2
   bool invert = false;
   String status = '';
@@ -206,9 +203,18 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _widgetListener = () { setState(() {}); };
+    // Update UI when widget-triggered processing starts/stops
+    _widgetListener = () => setState(() {});
     widgetProcessing.addListener(_widgetListener);
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    widgetProcessing.removeListener(_widgetListener);
+    _scanSub?.cancel();
+    _macController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSettings() async {
@@ -222,17 +228,21 @@ class _HomePageState extends State<HomePage> {
     // If there was a previous uncaught error, show it for debugging
     final lastError = sp.getString('last_error');
     if (lastError != null && lastError.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        showDialog<void>(
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await showDialog<void>(
           context: context,
           builder: (c) => AlertDialog(
             title: const Text('앱 오류가 발생했습니다'),
             content: SingleChildScrollView(child: Text(lastError, style: const TextStyle(fontSize: 12))),
             actions: [
-              TextButton(onPressed: () async { await sp.remove('last_error'); Navigator.of(c).pop(); }, child: const Text('지우기')),
+              TextButton(onPressed: () => Navigator.of(c).pop(), child: const Text('닫기'))
             ],
           ),
         );
+        // Clear stored last error so it won't show again
+        try {
+          await sp.remove('last_error');
+        } catch (_) {}
       });
     }
   }
@@ -462,13 +472,6 @@ class _HomePageState extends State<HomePage> {
     showDialog<void>(context: context, builder: (c) => AlertDialog(title: const Text('실패'), content: Text(msg), actions: [TextButton(onPressed: () => Navigator.of(c).pop(), child: const Text('OK'))]));
   }
 
-  @override
-  void dispose() {
-    widgetProcessing.removeListener(_widgetListener);
-    _scanSub?.cancel();
-    _macController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
