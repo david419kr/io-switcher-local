@@ -9,10 +9,33 @@ import 'package:permission_handler/permission_handler.dart';
 
 const MethodChannel _widgetChannel = MethodChannel('com.example.switcher_local/widget');
 
+// Notifier used to show processing overlay when the app is invoked by a widget
+final ValueNotifier<bool> widgetProcessing = ValueNotifier<bool>(false);
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   _widgetChannel.setMethodCallHandler(_handleWidgetAction);
-  runApp(const MyApp());
+
+  // Capture Flutter framework errors and forward to zone handler
+  FlutterError.onError = (FlutterErrorDetails details) {
+    Zone.current.handleUncaughtError(details.exception, details.stack ?? StackTrace.current);
+  };
+
+  runZonedGuarded<Future<void>>(() async {
+    runApp(const MyApp());
+  }, (error, stack) async {
+    // Save last error to SharedPreferences for postmortem
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final msg = '${DateTime.now().toIso8601String()}\n$error\n$stack';
+      await sp.setString('last_error', msg);
+    } catch (e) {
+      // ignore
+    }
+    // Also print so it's visible in logcat
+    print('Uncaught error: $error');
+    print(stack);
+  });
 }
 
 Future<dynamic> _handleWidgetAction(MethodCall call) async {
@@ -23,19 +46,33 @@ Future<dynamic> _handleWidgetAction(MethodCall call) async {
       final switchNum = int.tryParse(parts[0]);
       final actionType = parts[1];
       if (switchNum != null) {
-        await _executeWidgetAction(switchNum, actionType);
+        print('Widget action received: $action');
+        // Notify UI to show processing overlay, then execute action.
+        widgetProcessing.value = true;
+        final success = await _executeWidgetAction(switchNum, actionType);
+        widgetProcessing.value = false;
+        print('Widget action result: $success');
+        // If app was launched only to perform widget action, move app to background
+        if (success) {
+          try {
+            print('Calling SystemNavigator.pop() to return to home');
+            SystemNavigator.pop();
+          } catch (e) {
+            print('SystemNavigator.pop() failed: $e');
+          }
+        }
       }
     }
   }
 }
 
-Future<void> _executeWidgetAction(int switchIndex, String action) async {
+Future<bool> _executeWidgetAction(int switchIndex, String action) async {
   final sp = await SharedPreferences.getInstance();
   final mac = sp.getString('mac') ?? '';
   final deviceType = sp.getInt('type') ?? 2;
   final invert = sp.getBool('invert') ?? false;
   
-  if (mac.isEmpty) return;
+  if (mac.isEmpty) return false;
   
   String finalAction = action;
   if (invert) {
@@ -43,7 +80,8 @@ Future<void> _executeWidgetAction(int switchIndex, String action) async {
   }
   
   final flutterReactiveBle = FlutterReactiveBle();
-  await _writeWithRetriesBackground(flutterReactiveBle, mac, switchIndex, finalAction, retries: 3);
+  final res = await _writeWithRetriesBackground(flutterReactiveBle, mac, switchIndex, finalAction, retries: 3);
+  return res;
 }
 
 Future<bool> _writeWithRetriesBackground(FlutterReactiveBle ble, String deviceId, int switchIndex, String action, {int retries = 3}) async {
@@ -154,8 +192,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+
   final flutterReactiveBle = FlutterReactiveBle();
   final _macController = TextEditingController();
+  late final VoidCallback _widgetListener;
   int deviceType = 2; // 1 or 2
   bool invert = false;
   String status = '';
@@ -166,6 +206,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _widgetListener = () { setState(() {}); };
+    widgetProcessing.addListener(_widgetListener);
     _loadSettings();
   }
 
@@ -176,6 +218,23 @@ class _HomePageState extends State<HomePage> {
       deviceType = sp.getInt('type') ?? 2;
       invert = sp.getBool('invert') ?? false;
     });
+
+    // If there was a previous uncaught error, show it for debugging
+    final lastError = sp.getString('last_error');
+    if (lastError != null && lastError.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog<void>(
+          context: context,
+          builder: (c) => AlertDialog(
+            title: const Text('앱 오류가 발생했습니다'),
+            content: SingleChildScrollView(child: Text(lastError, style: const TextStyle(fontSize: 12))),
+            actions: [
+              TextButton(onPressed: () async { await sp.remove('last_error'); Navigator.of(c).pop(); }, child: const Text('지우기')),
+            ],
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -405,6 +464,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    widgetProcessing.removeListener(_widgetListener);
     _scanSub?.cancel();
     _macController.dispose();
     super.dispose();
