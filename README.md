@@ -25,7 +25,9 @@ apk 다운로드는 release([여기](https://github.com/david419kr/io-switcher-l
 
 https://github.com/user-attachments/assets/8f39293a-16b4-4bff-a1c5-c5a90fbba2a3
 
-2. 위젯 추가 및 사용(1구 2x1사이즈 및 2구 4x1 사이즈 지원)
+2. 위젯 추가 및 사용(1구 2x1사이즈 및 2구 4x1 사이즈 지원)  
+위젯 클릭시 앱이 한번씩 켜졌다가 스위처 작동하고 다시 홈으로 돌아가는건 제가 위젯만으로 블루투스 조작을 못하겠어서 이렇게 구현되었습니다.  
+정상 동작입니다.  
 
 
 https://github.com/user-attachments/assets/21109fa0-2fd1-4ec5-b517-a976a7a36020
