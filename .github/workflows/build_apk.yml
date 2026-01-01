@@ -20,6 +20,12 @@ jobs:
         working-directory: android/flutter_app
         run: flutter pub get
 
+      - name: Upgrade dependencies to latest compatible versions
+        working-directory: android/flutter_app
+        run: |
+          flutter pub upgrade
+          flutter pub get
+
       - name: Ensure Android project files (create if missing, migrate embedding)
         working-directory: android/flutter_app
         run: flutter create .
