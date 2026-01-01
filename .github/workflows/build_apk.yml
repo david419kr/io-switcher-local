@@ -20,6 +20,10 @@ jobs:
         working-directory: android/flutter_app
         run: flutter pub get
 
+      - name: Ensure Android project files (create if missing, migrate embedding)
+        working-directory: android/flutter_app
+        run: flutter create .
+
       - name: Build debug APK
         working-directory: android/flutter_app
         run: flutter build apk --debug
