@@ -19,12 +19,24 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Install Android SDK packages
+      - name: Install Android command-line tools and SDK packages
         run: |
-          sudo mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
-          sudo chown -R $USER $ANDROID_SDK_ROOT
-          yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses || true
-          sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-36" "build-tools;36.0.0" "cmdline-tools;latest" "platforms;android-33"
+          mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+          cd $ANDROID_SDK_ROOT/cmdline-tools
+          # Download latest command line tools
+          curl -fsSLO https://dl.google.com/android/repository/commandlinetools-linux-latest.zip
+          unzip -q commandlinetools-linux-latest.zip -d cmdline-tools-temp
+          rm commandlinetools-linux-latest.zip
+          # Ensure expected layout (cmdline-tools/latest)
+          mkdir -p latest
+          mv cmdline-tools-temp/cmdline-tools/* latest/ || mv cmdline-tools-temp/* latest/ || true
+          rm -rf cmdline-tools-temp
+          # Persist sdkmanager into PATH for subsequent steps
+          echo "PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH" >> $GITHUB_ENV
+
+          # Accept licenses and install required packages
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses || true
+          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-36" "build-tools;36.0.0" "platforms;android-33"
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
 
