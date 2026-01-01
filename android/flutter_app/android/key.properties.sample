@@ -1,0 +1,11 @@
+# Copy this file to key.properties and fill in your keystore details for release signing
+# storePassword=<your-keystore-password>
+# keyPassword=<your-key-password>
+# keyAlias=<your-key-alias>
+# storeFile=<path-to-your-keystore.jks>
+
+# Example:
+# storePassword=myStorePass
+# keyPassword=myKeyPass
+# keyAlias=myKey
+# storeFile=/home/user/keystore.jks

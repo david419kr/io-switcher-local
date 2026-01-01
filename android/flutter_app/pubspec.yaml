@@ -1,0 +1,16 @@
+name: pyswitcher_app
+description: A mobile client for PySwitcherIO devices
+publish_to: 'none'
+version: 0.0.1
+environment:
+  sdk: ">=2.18.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_reactive_ble: ^5.0.2
+  shared_preferences: ^2.0.15
+  permission_handler: ^10.4.0
+
+flutter:
+  uses-material-design: true
