@@ -475,191 +475,208 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('I/O 스위처 로컬'),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          // MAC 주소 설정 카드
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('기기 설정', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _macController,
-                  decoration: const InputDecoration(
-                    labelText: 'MAC 주소',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.bluetooth),
-                  ),
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text('I/O 스위처 로컬'),
+            centerTitle: true,
+            elevation: 0,
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              // MAC 주소 설정 카드
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('기기 설정', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _macController,
+                      decoration: const InputDecoration(
+                        labelText: 'MAC 주소',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.bluetooth),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _saveSettings,
+                          icon: const Icon(Icons.save),
+                          label: const Text('저장'),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _scanning ? null : _findDevices,
+                          icon: _scanning ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.search),
+                          label: const Text('찾기'),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+                        ),
+                      ),
+                    ]),
+                  ]),
                 ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _saveSettings,
-                      icon: const Icon(Icons.save),
-                      label: const Text('저장'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+              ),
+              const SizedBox(height: 16),
+              // 옵션 설정 카드
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('옵션', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Row(children: [
+                        const Icon(Icons.electrical_services, size: 20),
+                        const SizedBox(width: 8),
+                        const Text('스위치 개수'),
+                        const SizedBox(width: 12),
+                        DropdownButton<int>(
+                          value: deviceType,
+                          items: const [
+                            DropdownMenuItem(value: 1, child: Text('1구')),
+                            DropdownMenuItem(value: 2, child: Text('2구')),
+                          ],
+                          onChanged: (v) async {
+                            if (v != null) setState(() => deviceType = v);
+                            await _saveSettings();
+                          },
+                        ),
+                      ]),
+                      Row(children: [
+                        const Text('ON/OFF 반전'),
+                        Switch(
+                          value: invert,
+                          onChanged: (v) async {
+                            setState(() => invert = v);
+                            await _saveSettings();
+                          },
+                        ),
+                      ]),
+                    ]),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // 제어 버튼 카드
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('스위치 제어', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    // 스위치1 버튼
+                    Row(children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _buttonsEnabled ? () => _onAction(1, 'on') : null,
+                          icon: const Icon(Icons.power_settings_new),
+                          label: const Text('스위치1 ON'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(0, 50),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: _buttonsEnabled ? () => _onAction(1, 'off') : null,
+                          icon: const Icon(Icons.power_off),
+                          label: const Text('스위치1 OFF'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[700],
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(0, 50),
+                          ),
+                        ),
+                      ),
+                    ]),
+                    // 스위치2 버튼 (2구일 때만)
+                    if (deviceType == 2) ...[
+                      const SizedBox(height: 12),
+                      const Divider(),
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _buttonsEnabled ? () => _onAction(2, 'on') : null,
+                            icon: const Icon(Icons.power_settings_new),
+                            label: const Text('스위치2 ON'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 50),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _buttonsEnabled ? () => _onAction(2, 'off') : null,
+                            icon: const Icon(Icons.power_off),
+                            label: const Text('스위치2 OFF'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[700],
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 50),
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ],
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // 상태 표시 카드
+              Card(
+                color: status.contains('실패') || status.contains('에러') ? Colors.red[50] : status.contains('성공') ? Colors.green[50] : Colors.blue[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(children: [
+                    Icon(
+                      status.contains('실패') || status.contains('에러') ? Icons.error_outline : status.contains('성공') ? Icons.check_circle_outline : Icons.info_outline,
+                      color: status.contains('실패') || status.contains('에러') ? Colors.red : status.contains('성공') ? Colors.green : Colors.blue,
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _scanning ? null : _findDevices,
-                      icon: _scanning ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.search),
-                      label: const Text('찾기'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-                    ),
-                  ),
-                ]),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 옵션 설정 카드
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('옵션', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Row(children: [
-                    const Icon(Icons.electrical_services, size: 20),
-                    const SizedBox(width: 8),
-                    const Text('스위치 개수'),
                     const SizedBox(width: 12),
-                    DropdownButton<int>(
-                      value: deviceType,
-                      items: const [
-                        DropdownMenuItem(value: 1, child: Text('1구')),
-                        DropdownMenuItem(value: 2, child: Text('2구')),
-                      ],
-                      onChanged: (v) async {
-                        if (v != null) setState(() => deviceType = v);
-                        await _saveSettings();
-                      },
-                    ),
-                  ]),
-                  Row(children: [
-                    const Text('ON/OFF 반전'),
-                    Switch(
-                      value: invert,
-                      onChanged: (v) async {
-                        setState(() => invert = v);
-                        await _saveSettings();
-                      },
-                    ),
-                  ]),
-                ]),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // 제어 버튼 카드
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('스위치 제어', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                // 스위치1 버튼
-                Row(children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _buttonsEnabled ? () => _onAction(1, 'on') : null,
-                      icon: const Icon(Icons.power_settings_new),
-                      label: const Text('스위치1 ON'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 50),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _buttonsEnabled ? () => _onAction(1, 'off') : null,
-                      icon: const Icon(Icons.power_off),
-                      label: const Text('스위치1 OFF'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.grey[700],
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(0, 50),
-                      ),
-                    ),
-                  ),
-                ]),
-                // 스위치2 버튼 (2구일 때만)
-                if (deviceType == 2) ...[
-                  const SizedBox(height: 12),
-                  const Divider(),
-                  const SizedBox(height: 12),
-                  Row(children: [
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _buttonsEnabled ? () => _onAction(2, 'on') : null,
-                        icon: const Icon(Icons.power_settings_new),
-                        label: const Text('스위치2 ON'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(0, 50),
+                      child: Text(
+                        status.isEmpty ? '대기 중...' : status,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: status.contains('실패') || status.contains('에러') ? Colors.red[900] : status.contains('성공') ? Colors.green[900] : Colors.blue[900],
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _buttonsEnabled ? () => _onAction(2, 'off') : null,
-                        icon: const Icon(Icons.power_off),
-                        label: const Text('스위치2 OFF'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey[700],
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(0, 50),
-                        ),
-                      ),
-                    ),
                   ]),
-                ],
-              ]),
+                ),
+              ),
+            ]),
+          ),
+        ),
+        if (widgetProcessing.value)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black54,
+              child: Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: const [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 12),
+                  Text('처리 중...', style: TextStyle(color: Colors.white)),
+                ]),
+              ),
             ),
           ),
-          const SizedBox(height: 16),
-          // 상태 표시 카드
-          Card(
-            color: status.contains('실패') || status.contains('에러') ? Colors.red[50] : status.contains('성공') ? Colors.green[50] : Colors.blue[50],
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(children: [
-                Icon(
-                  status.contains('실패') || status.contains('에러') ? Icons.error_outline : status.contains('성공') ? Icons.check_circle_outline : Icons.info_outline,
-                  color: status.contains('실패') || status.contains('에러') ? Colors.red : status.contains('성공') ? Colors.green : Colors.blue,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    status.isEmpty ? '대기 중...' : status,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: status.contains('실패') || status.contains('에러') ? Colors.red[900] : status.contains('성공') ? Colors.green[900] : Colors.blue[900],
-                    ),
-                  ),
-                ),
-              ]),
-            ),
-          ),
-        ]),
-      ),
+      ],
     );
   }
 }
