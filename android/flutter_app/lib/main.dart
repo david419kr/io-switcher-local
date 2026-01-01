@@ -191,29 +191,73 @@ class _HomePageState extends State<HomePage> {
 
   Future<bool> _writeWithRetries(String deviceId, int switchIndex, String action, {int retries = 5}) async {
     final serviceId = Uuid.parse(SERVICE_UUID);
-    final charId = Uuid.parse(CHAR_UUID);
-    final data = (switchIndex == 1)
+    final charIdConst = Uuid.parse(CHAR_UUID);
+    final data = Uint8List.fromList((switchIndex == 1)
         ? (action == 'on' ? ON_KEY1 : OFF_KEY1)
-        : (action == 'on' ? ON_KEY2 : OFF_KEY2);
+        : (action == 'on' ? ON_KEY2 : OFF_KEY2));
 
     for (int i = 0; i < retries; i++) {
+      StreamSubscription<ConnectionStateUpdate>? connSub;
       try {
-        // connect
-        final conn = flutterReactiveBle.connectToDevice(id: deviceId, connectionTimeout: const Duration(seconds: 5));
-        final sub = conn.listen((update) {}, onError: (e) {});
-        // wait for connected state
-        final connected = await conn.firstWhere((u) => u.connectionState == DeviceConnectionState.connected).timeout(const Duration(seconds: 6), onTimeout: () => throw Exception('connect timeout'));
-        // write
-        final characteristic = QualifiedCharacteristic(serviceId: serviceId, characteristicId: charId, deviceId: deviceId);
-        await flutterReactiveBle.writeCharacteristicWithoutResponse(characteristic, value: data);
-        // give device some time for any internal processing
-        await Future.delayed(const Duration(milliseconds: 500));
-        // disconnect
-        await sub.cancel();
-        return true;
+        setState(() => status = '연결 시도 중... (시도 ${i + 1}/$retries)');
+        final connStream = flutterReactiveBle.connectToDevice(id: deviceId, connectionTimeout: const Duration(seconds: 6));
+        // Wait for connected state
+        final connectedUpdate = await connStream.firstWhere((u) => u.connectionState == DeviceConnectionState.connected).timeout(const Duration(seconds: 8));
+        // Optional short delay to let device initialize
+        await Future.delayed(const Duration(milliseconds: 300));
+        // Optionally keep the subscription so we can cancel later
+        connSub = connStream.listen((_) {}, onError: (_) {});
+
+        setState(() => status = '연결됨 - 서비스 탐색 중...');
+        // Discover services and pick characteristic
+        List<DiscoveredService> services = await flutterReactiveBle.discoverServices(deviceId);
+        String? targetCharId;
+        for (final s in services) {
+          if (s.serviceId == serviceId) {
+            // prefer explicit CHAR_UUID if present
+            if (s.characteristics.isNotEmpty) {
+              final exact = s.characteristics.firstWhere((c) => c.characteristicId == charIdConst, orElse: () => s.characteristics.last);
+              targetCharId = exact.characteristicId.toString();
+              break;
+            }
+          }
+        }
+        // fallback to constant char id
+        if (targetCharId == null) {
+          targetCharId = CHAR_UUID;
+        }
+
+        final characteristic = QualifiedCharacteristic(
+          serviceId: serviceId,
+          characteristicId: Uuid.parse(targetCharId),
+          deviceId: deviceId,
+        );
+
+        setState(() => status = '쓰기중...');
+        // Try write with response first
+        try {
+          await flutterReactiveBle.writeCharacteristicWithResponse(characteristic, value: data);
+          // success
+          await Future.delayed(const Duration(milliseconds: 500));
+          await connSub?.cancel();
+          return true;
+        } catch (e) {
+          // try without response
+          try {
+            await flutterReactiveBle.writeCharacteristicWithoutResponse(characteristic, value: data);
+            await Future.delayed(const Duration(milliseconds: 500));
+            await connSub?.cancel();
+            return true;
+          } catch (e2) {
+            // both failed - throw to outer retry logic
+            throw Exception('Write failed (withResponse: $e, withoutResponse: $e2)');
+          }
+        }
       } catch (e) {
-        // retry
-        setState(() => status = '스위쳐 연결 실패. 다시 시도 남은 횟수 ${retries - i - 1}');
+        setState(() => status = '스위쳐 연결 실패. 다시 시도 남은 횟수 ${retries - i - 1} - 에러: $e');
+        try {
+          await connSub?.cancel();
+        } catch (_) {}
         await Future.delayed(const Duration(seconds: 1));
         continue;
       }
