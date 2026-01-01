@@ -5,5 +5,5 @@
             <solid android:color="@color/white" />
         </shape>
     </item>
-    <item android:top="16dp" android:drawable="@drawable/ic_launcher_foreground" />
+    <item android:top="16dp" android:drawable="@mipmap/ic_launcher_foreground" />
 </layer-list>
