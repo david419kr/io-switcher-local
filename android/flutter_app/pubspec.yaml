@@ -14,3 +14,13 @@ dependencies:
 
 flutter:
   uses-material-design: true
+
+# If permission_handler_android from pub.dev still contains v1 embedding
+# references, use the git version from the official repo as an override.
+# This forces the plugin platform implementation to the latest source.
+dependency_overrides:
+  permission_handler_android:
+    git:
+      url: https://github.com/Baseflow/permission_handler.git
+      path: permission_handler_android
+      ref: main
