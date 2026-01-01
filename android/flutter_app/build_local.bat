@@ -2,6 +2,7 @@
 REM Build debug and release APKs locally. Requires Flutter in PATH and Android SDK configured.
 cd /d "%~dp0"
 flutter pub get
+flutter pub run flutter_launcher_icons
 flutter build apk --debug
 flutter build apk --release
 if exist build\app\outputs\flutter-apk\app-debug.apk echo Debug APK: build\app\outputs\flutter-apk\app-debug.apk

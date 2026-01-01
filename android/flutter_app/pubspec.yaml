@@ -22,10 +22,11 @@ flutter:
 
 flutter_launcher_icons:
   android: "launcher_icon"
-  ios: "AppIcon"
-  image_path_ios: "icon.png"
-  image_path_android: "icon.png"
+  ios: true
+  image_path: "../../android/icon.png"
   remove_alpha_ios: true
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "../../android/icon.png"
 
 # If permission_handler_android from pub.dev still contains v1 embedding
 # references, use the git version from the official repo as an override.
