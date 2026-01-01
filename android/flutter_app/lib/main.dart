@@ -201,12 +201,31 @@ class _HomePageState extends State<HomePage> {
       try {
         setState(() => status = '연결 시도 중... (시도 ${i + 1}/$retries)');
         final connStream = flutterReactiveBle.connectToDevice(id: deviceId, connectionTimeout: const Duration(seconds: 6));
-        // Wait for connected state
-        final connectedUpdate = await connStream.firstWhere((u) => u.connectionState == DeviceConnectionState.connected).timeout(const Duration(seconds: 8));
+        // Subscribe once and wait for connected state using a Completer to avoid double-listen errors
+        final completer = Completer<ConnectionStateUpdate>();
+        connSub = connStream.listen((update) {
+          if (!completer.isCompleted) {
+            if (update.connectionState == DeviceConnectionState.connected) {
+              completer.complete(update);
+            } else if (update.connectionState == DeviceConnectionState.disconnected) {
+              completer.completeError(Exception('Device disconnected before connection'));
+            }
+          }
+        }, onError: (err) {
+          if (!completer.isCompleted) completer.completeError(err);
+        });
+        // Wait for connected state with timeout
+        try {
+          await completer.future.timeout(const Duration(seconds: 8));
+        } catch (e) {
+          // ensure subscription cancelled on timeout/error
+          try {
+            await connSub?.cancel();
+          } catch (_) {}
+          rethrow;
+        }
         // Optional short delay to let device initialize
         await Future.delayed(const Duration(milliseconds: 300));
-        // Optionally keep the subscription so we can cancel later
-        connSub = connStream.listen((_) {}, onError: (_) {});
 
         setState(() => status = '연결됨 - 서비스 탐색 중...');
         // Discover services and pick characteristic
