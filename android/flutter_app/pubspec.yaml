@@ -14,3 +14,7 @@ dependencies:
 
 flutter:
   uses-material-design: true
+
+dependency_overrides:
+  # Ensure platform-specific permission handler package is recent and v2-embedding compatible
+  permission_handler_android: ^10.4.0
