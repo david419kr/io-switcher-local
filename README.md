@@ -2,11 +2,11 @@ I/O 스위처 로컬
 
 2026년 1월 현재, 플레이스토어 공식 I/O 앱이 서비스 종료하였는지 신규 설치시 휴대폰 인증이 불가능합니다.  
 
-별도 서버 거치지 않고 스위처에 직접 블루투스로 연결만 하는 안드로이드 앱을 새로 만들었습니다.  
+별도 서버 거치지 않고 스위처에 직접 블루투스로 연결만 하는 안드로이드 앱과 윈도우 앱을 새로 만들었습니다.  
 
 제목 그대로, I/O의 스위처를 서버 인증 없이 로컬에서 오프라인으로 그냥 사용하게 하는 앱입니다.  
 
-apk 다운로드는 release([여기](https://github.com/david419kr/io-switcher-local/releases/tag/v1))에서 io-switcher-local.apk
+exe 및 apk 다운로드는 release([여기](https://github.com/david419kr/io-switcher-local/releases/tag/v1))에서 io-switcher-local.exe 혹은 io-switcher-local.apk
  받으시면 됩니다.  
 
 앱과 위젯 디자인은 구리지만 대강 될 건 다 됩니다. 사용감은 공식 앱과 크게 다르지 않을 것 같습니다.  
@@ -18,7 +18,7 @@ apk 다운로드는 release([여기](https://github.com/david419kr/io-switcher-l
 
 앱 이름 그대로, 오로지 스위처만 지원이고, 링커 등은 미지원입니다.  
 
-사용법은 대충 아래 영상 보시면, 스위처 원래 써보신 분들이라면 감이 오실 것 같습니다.  
+안드로이드 앱 사용법은 대충 아래 영상 보시면, 스위처 원래 써보신 분들이라면 감이 오실 것 같습니다.  
 
 1. 앱 첫 실행 후 스위처 검색 및 스위치 조작
 
