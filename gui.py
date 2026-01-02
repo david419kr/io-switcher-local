@@ -9,8 +9,46 @@ from tkinter import messagebox
 
 from bleak import BleakScanner
 import pyswitcherio
+import sys
+import shutil
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+# Resource helpers to support PyInstaller onefile as well as running from source
+def resource_path(relative_path: str) -> str:
+    """Return absolute path to resource; handles PyInstaller _MEIPASS when bundled."""
+    base = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+    return os.path.join(base, relative_path)
+
+
+def get_user_config_path() -> str:
+    """Return the path to the writable user config in %APPDATA% (win) or XDG for others."""
+    if sys.platform == 'win32':
+        base = os.environ.get('APPDATA', os.path.expanduser("~"))
+    else:
+        base = os.environ.get('XDG_CONFIG_HOME', os.path.expanduser("~/.config"))
+    appdir = os.path.join(base, "IO-Switcher-Local")
+    os.makedirs(appdir, exist_ok=True)
+    return os.path.join(appdir, "config.json")
+
+
+def ensure_user_config() -> str:
+    """Ensure a writable user config exists. If missing, copy the bundled default config.json into user path."""
+    user_config = get_user_config_path()
+    if not os.path.exists(user_config):
+        bundled = resource_path('config.json')
+        try:
+            shutil.copyfile(bundled, user_config)
+        except Exception as e:
+            # Fall back to creating an empty/default config
+            try:
+                with open(user_config, 'w', encoding='utf-8') as f:
+                    json.dump({"mac": "", "type": 2, "invert": False}, f)
+            except Exception:
+                pass
+    return user_config
+
+# CONFIG_PATH is the writable config location we will read/write at runtime
+CONFIG_PATH = ensure_user_config()
+
 LOG_RETRY_MSG = "스위쳐 연결 실패. 다시 시도 남은 횟수"
 LOG_FAIL_MSG = "스위쳐 통신 실패.."
 
@@ -32,7 +70,7 @@ class GuiLogHandler(logging.Handler):
 class SwitchApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("PySwitcherIO GUI")
+        self.root.title("I/O 스위처 로컬")
 
         # load config
         self.config = self._load_config()
